@@ -15,12 +15,13 @@ enum {
   ACT_HEAD_TILT,
   ACT_ARMS,
   ACT_ARM_LEFT,
-  ACT_ARM_RIGHT
+  ACT_ARM_RIGHT,
+  ACT_CHEEK
 };
 
 typedef struct node {
   uint8_t type;
-  int eyes_shape;
+  int eyes_shape, eyes_mode;
   int arm_left, arm_right, arm_time;
   int head_pan, head_tilt;
 } Node;
@@ -28,7 +29,7 @@ typedef struct node {
 class actionQueue {
 public:
   actionQueue(AquatanEyes *e, AquatanArms *a, Camera *h, NeoPixels *c); //, Charger *c);
-  void queueEyes(int shape);
+  void queueEyes(int shape, int m);
   void queueArms(int left, int right, int time);
   void queueArmLeft(int left, int time);
   void queueArmRight(int right, int time);

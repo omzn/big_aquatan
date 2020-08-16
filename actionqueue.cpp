@@ -1,15 +1,17 @@
 #include "actionqueue.h"
 
-actionQueue::actionQueue(AquatanEyes *e, AquatanArms *a, Camera *h) {
+actionQueue::actionQueue(AquatanEyes *e, AquatanArms *a, Camera *h, NeoPixels *c) {
   _eyes = e;
   _arms = a;
   _head = h;
+  _cheek = c;
 }
 
-void actionQueue::queueEyes(int shape) {
+void actionQueue::queueEyes(int shape, int m = EYE_IDLE) {
   qlast = (qlast + 1) % MAX_QUEUE_SIZE;
   _queue[qlast].type = ACT_EYES;
   _queue[qlast].eyes_shape = shape;
+  _queue[qlast].eyes_mode = m;
 }
 
 void actionQueue::queueArms(int left, int right, int time) {
@@ -64,6 +66,7 @@ uint8_t actionQueue::dequeue() {
   switch (_queue[qtop].type) {
   case ACT_EYES:
     _eyes->shape(_queue[qtop].eyes_shape);
+    _eyes->mode(_queue[qtop].eyes_mode);
     break;
   case ACT_ARMS:
     _arms->setMoveLeft(_queue[qtop].arm_left, _queue[qtop].arm_time);

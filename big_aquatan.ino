@@ -313,12 +313,12 @@ void handleHead() {
     if (argname == "pan") {
       p = argv.toInt();
       p = constrain(p, -100, 100);
-      head.setSlowPan(p);
+//      head.setSlowPan(p);
       //      servo1.write(90 - s);
     } else if (argname == "tilt") {
       t = argv.toInt();
       t = constrain(t, -100, 100);
-      head.setSlowTilt(t);
+//      head.setSlowTilt(t);
       //      servo2.write(s + 90);
     }
   }
