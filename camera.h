@@ -44,11 +44,14 @@ class Camera {
         uint8_t updateTilt();
         uint8_t isMovingPan();
         uint8_t isMovingTilt();
-        
+
+        void setMinMax(int16_t pmin, int16_t pmax, int16_t tmin, int16_t tmax);
+
     private:
         Servo *pan_servo, *tilt_servo;
         int16_t _pan_center, _tilt_center;
         int16_t _pan_deg, _tilt_deg;
+        int16_t _pan_min_deg, _pan_max_deg, _tilt_min_deg, _tilt_max_deg;
         int16_t _slowpan_target_deg, _slowtilt_target_deg;
         uint8_t _slowpan_moving, _slowtilt_moving;
         uint16_t _pan_interval, _tilt_interval;

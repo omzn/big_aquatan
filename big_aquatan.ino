@@ -27,6 +27,7 @@
 #include <Preferences.h>
 #include <RTClib.h>
 #include <SPI.h>
+#include <SparkFun_APDS9960.h>
 #include <WebServer.h>
 #include <WiFiManager.h>
 #include <Wire.h>
@@ -47,10 +48,14 @@
 #define PIN_SERVO3 (23)
 #define PIN_SERVO4 (26)
 
+#define PIN_MIC (36)
+
 #define NEOPIXEL_LED_NUM (2)
 
 Adafruit_SSD1306 oled1(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_SSD1306 oled2(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET);
+
+SparkFun_APDS9960 apds = SparkFun_APDS9960(&Wire1);
 
 AquatanEye eye_left(&oled1);
 AquatanEye eye_right(&oled2);
@@ -75,13 +80,20 @@ Preferences prefs;
 String myhost;
 int operation_mode;
 
-enum { OPERATION_AUTO = 0, OPERATION_MANUAL };
+uint32_t prev_time;
+uint32_t prev_frame;
+
+uint32_t voice_time;
+uint32_t operation_timer;
+
+
+enum { OPERATION_AUTO = 0, OPERATION_MANUAL, OPERATION_SLEEP };
 
 void setup() {
   WiFiManager wifiManager;
 
   Serial.begin(115200);
-  rtc.begin(DateTime(2019, 5, 1, 0, 0, 0));
+  rtc.begin(DateTime(2019, 12, 15, 15, 45, 0));
   prefs.begin("aquatan", false);
 
   myhost = prefs.getString("hostname", "bigaquatan");
@@ -93,17 +105,39 @@ void setup() {
   cheek.addPixel(1);
   cheek.mode(LED_OFF);
   cheek.update();
-  cheek.color(operation_mode ? LEDCOLOR_CYAN : LEDCOLOR_MAGENTA);
-  cheek.period(5);
+  cheek.color(operation_mode == OPERATION_MANUAL
+                  ? LEDCOLOR_RED
+                  : (operation_mode == OPERATION_AUTO ? LEDCOLOR_MAGENTA
+                                                      : LEDCOLOR_CYAN));
+  cheek.period(operation_mode == OPERATION_SLEEP ? 10 : 3);
   cheek.mode(LED_FADE);
 
   head.begin(prefs.getShort("pan_deg", 0), prefs.getShort("tilt_deg", 0));
+  head.setMinMax(prefs.getShort("head_pan_min_deg", PAN_MIN_DEG),
+                 prefs.getShort("head_pan_max_deg", PAN_MAX_DEG),
+                 prefs.getShort("head_tilt_min_deg", TILT_MIN_DEG),
+                 prefs.getShort("head_tilt_max_deg", TILT_MAX_DEG));
   arms.begin(prefs.getShort("arm_left_deg", 0),
              prefs.getShort("arm_right_deg", 0));
+  arms.setMinMax(prefs.getShort("arm_left_min_deg", LEFT_MIN_DEG),
+                 prefs.getShort("arm_left_max_deg", LEFT_MAX_DEG),
+                 prefs.getShort("arm_right_min_deg", RIGHT_MIN_DEG),
+                 prefs.getShort("arm_right_max_deg", RIGHT_MAX_DEG));
 
   Wire1.begin(PIN_SDA1, PIN_SCL1);
 
   eyes.begin(-5, 0, 0, 0);
+
+  if (apds.init()) {
+    Serial.println(F("LAPDS-9960 initialization complete"));
+  } else {
+    Serial.println(F("Something went wrong during APDS-9960 init!"));
+  }
+  if (apds.enableGestureSensor(true)) {
+    Serial.println(F("Gesture sensor is now running"));
+  } else {
+    Serial.println(F("Something went wrong during gesture sensor init!"));
+  }
 
   wifiManager.autoConnect("AQUATAN4");
   ArduinoOTA.setHostname(myhost.c_str());
@@ -154,6 +188,7 @@ void setup() {
   webServer.on("/eye", handleEye);
   webServer.on("/arm", handleArm);
   webServer.on("/mode", handleMode);
+  webServer.on("/banzai", handleBanzai);
 
   ntp.begin();
   webServer.begin();
@@ -161,16 +196,50 @@ void setup() {
   if (epoch > 0) {
     rtc.adjust(DateTime(epoch + SECONDS_UTC_TO_JST));
   }
+  operation_timer = millis();
 }
 
-uint32_t prev_time;
-uint32_t prev_frame;
+// Find the Peak-to-Peak Amplitude Function
+int getSoundLevel() {
+  static int preAmp = 0;
+  // Time variables to find the peak-to-peak amplitude
+  unsigned long startTime = millis(); // Start of sample window
+  unsigned int PTPAmp = 0;
+  int sampleTime = 20;
+
+  // Signal variables to find the peak-to-peak amplitude
+  unsigned int maxAmp = 0;
+  unsigned int minAmp = 4095;
+
+  // Find the max and min of the mic output within the 50 ms timeframe
+  while (millis() - startTime < sampleTime) {
+    int micOut = analogRead(PIN_MIC);
+    if (micOut < 4096) // prevent erroneous readings
+    {
+      if (micOut > maxAmp) {
+        maxAmp = micOut; // save only the max reading
+      } else if (micOut < minAmp) {
+        minAmp = micOut; // save only the min reading
+      }
+    }
+  }
+
+  PTPAmp = maxAmp - minAmp; // (max amp) - (min amp) = peak-to-peak amplitude
+  int fill = map(PTPAmp, 50, 500, 0, 10);
+  if (fill != preAmp) {
+    preAmp = fill;
+  }
+//  Serial.print("vol:");
+//  Serial.println(fill);
+  return fill >= 10 ? 1 : 0;
+}
 
 void loop() {
   webServer.handleClient();
   ArduinoOTA.handle();
   DateTime now = rtc.now();
 
+  /* random head move */
   if (millis() - prev_time > 1000) {
     if (operation_mode == OPERATION_AUTO) {
       if (random(100) < 10) {
@@ -188,6 +257,38 @@ void loop() {
     }
     prev_time = millis();
   }
+
+  /* enter sleep */
+  if (operation_mode == OPERATION_MANUAL || operation_mode == OPERATION_AUTO) {
+    if (millis() - operation_timer > 1 * 60 * 1000) {
+      operation_mode = OPERATION_SLEEP;
+      cheek.color(LEDCOLOR_CYAN);
+      cheek.mode(LED_FADE);
+      cheek.period(10);
+      eyes.shape(SHAPE_HORI);
+      eyes.mode(EYE_SLEEP);
+      actions.queueHead(0, 80);
+    }
+  }
+
+  /* check environmental sound */
+  int vol = getSoundLevel();
+  //Serial.println(vol);
+  if (vol > 0) {
+    operation_timer = millis();
+    if (operation_mode == OPERATION_SLEEP) {
+      operation_mode = OPERATION_MANUAL;
+      cheek.color(LEDCOLOR_RED);
+      cheek.mode(LED_FADE);
+      cheek.period(3);
+      eyes.shape(SHAPE_NORMAL);
+      eyes.mode(EYE_IDLE);
+      actions.queueHead(0, 0);
+    }
+  } 
+
+  /* check gestures */
+  handleGesture();
 
   eyes.randomBlinking();
 
@@ -211,6 +312,64 @@ void loop() {
   }
 
   delay(1);
+}
+
+void handleGesture() {
+  static uint32_t prev_millis = 0;
+  if (operation_mode == OPERATION_MANUAL) {
+    if (millis() - prev_millis > 100) {
+      prev_millis = millis();
+      if (apds.isGestureAvailable()) {
+        operation_timer = millis();
+        Serial.print("gesture avairable: ");
+        int g = apds.readGesture(); // ここで詰まる
+                                    //      Serial.println(g);
+        switch (g) {
+        case DIR_UP:
+          Serial.println("UP");
+          actions.queueHead(head.panRatio(), -100);
+          // digitalWrite(LED_L, LOW);
+          // Keyboard.press(KEY_UP_ARROW);
+          // count++;
+          break;
+        case DIR_DOWN:
+          Serial.println("DOWN");
+          actions.queueHead(head.panRatio(), 80);
+          // digitalWrite(LED_R, LOW);
+          // Keyboard.press(KEY_DOWN_ARROW);
+          // count++;
+          break;
+        case DIR_LEFT:
+          Serial.println("LEFT");
+          actions.queueHead(80, head.tiltRatio());
+          // digitalWrite(LED_L, LOW);
+          // Keyboard.press(KEY_LEFT_ARROW);
+          // count++;
+          break;
+        case DIR_RIGHT:
+          Serial.println("RIGHT");
+          actions.queueHead(-80, head.tiltRatio());
+          // digitalWrite(LED_R, LOW);
+          // Keyboard.press(KEY_RIGHT_ARROW);
+          // count++;
+          break;
+        case DIR_NEAR:
+          Serial.println("NEAR");
+          // digitalWrite(LED_R, LOW);
+          // digitalWrite(LED_L, LOW);
+          // Keyboard.write('h');
+          // count++;
+          break;
+        case DIR_FAR:
+          Serial.println("FAR");
+          break;
+        default:
+          // Serial.println("NONE");
+          break;
+        }
+      }
+    }
+  }
 }
 
 void handleStatus() {
@@ -313,17 +472,17 @@ void handleHead() {
     if (argname == "pan") {
       p = argv.toInt();
       p = constrain(p, -100, 100);
-//      head.setSlowPan(p);
+      //      head.setSlowPan(p);
       //      servo1.write(90 - s);
     } else if (argname == "tilt") {
       t = argv.toInt();
       t = constrain(t, -100, 100);
-//      head.setSlowTilt(t);
+      //      head.setSlowTilt(t);
       //      servo2.write(s + 90);
     }
   }
   if (p < 200 && t < 200) {
-    actions.queueHead(p,t);
+    actions.queueHead(p, t);
   } else if (p < 200) {
     actions.queueHeadPan(p);
   } else if (t < 200) {
@@ -334,8 +493,8 @@ void handleHead() {
 
 void handleEye() {
   String argname, argv;
-  int d, s, left_shape, right_shape;
-  left_shape = right_shape = 0;
+  int d, s, left_shape, right_shape, mode = EYE_IDLE;
+  left_shape = right_shape = SHAPE_NORMAL;
   for (int i = 0; i < webServer.args(); i++) {
     argname = webServer.argName(i);
     argv = webServer.arg(i);
@@ -347,11 +506,10 @@ void handleEye() {
       left_shape = argv.toInt();
       right_shape = left_shape;
     } else if (argname == "wink") {
-      eyes.mode(EYE_WINK);
+      mode = EYE_WINK;
     }
   }
-  eye_left.shape(left_shape);
-  eye_right.shape(right_shape);
+  actions.queueEyes(left_shape, right_shape, mode);
   handleStatus();
 }
 
@@ -363,15 +521,53 @@ void handleMode() {
     argv = webServer.arg(i);
     if (argname == "manual") {
       operation_mode = OPERATION_MANUAL;
+      eyes.shape(SHAPE_NORMAL);
+      eyes.mode(EYE_IDLE);
+      actions.queueHead(0, 0);
     } else if (argname == "automatic") {
       operation_mode = OPERATION_AUTO;
+      eyes.shape(SHAPE_NORMAL);
+      eyes.mode(EYE_IDLE);
+      actions.queueHead(0, 0);
+    } else if (argname == "sleep") {
+      operation_mode = OPERATION_SLEEP;
+      eyes.shape(SHAPE_HORI);
+      eyes.mode(EYE_SLEEP);
+      actions.queueHead(0, 80);
     }
   }
   prefs.putUInt("operation_mode", operation_mode);
-  cheek.color(operation_mode == OPERATION_MANUAL ? LEDCOLOR_CYAN
-                                                 : LEDCOLOR_MAGENTA);
+  cheek.color(operation_mode == OPERATION_MANUAL
+                  ? LEDCOLOR_RED
+                  : (operation_mode == OPERATION_AUTO ? LEDCOLOR_MAGENTA
+                                                      : LEDCOLOR_CYAN));
   cheek.mode(LED_FADE);
-  cheek.period(5);
+  cheek.period(operation_mode == OPERATION_SLEEP ? 10 : 3);
+  handleStatus();
+}
+
+void handleBanzai() {
+  String argname, argv;
+  int num = 3;
+  for (int i = 0; i < webServer.args(); i++) {
+    argname = webServer.argName(i);
+    argv = webServer.arg(i);
+    if (argname == "repeat") {
+      num = argv.toInt();
+    }
+  }
+  actions.queueEyes(SHAPE_GT, SHAPE_LT, EYE_IDLE);
+  actions.queueCheek(LED_ON, LEDCOLOR_RED);
+  actions.queueHead(0, -100);
+  for (int i = 0; i < num; i++) {
+    actions.queueArms(-100, -100, 60);
+    actions.queueWait(500);
+    actions.queueArms(100, 100, 60);
+    actions.queueWait(2000);
+  }
+  actions.queueArms(0, 0, 60);
+  actions.queueHead(0, 0);
+  actions.queueEyes(SHAPE_NORMAL, SHAPE_NORMAL, EYE_IDLE);
   handleStatus();
 }
 
@@ -384,22 +580,55 @@ void handleConfig() {
     if (argname == "hostname") {
       myhost = argv;
       prefs.putString("hostname", myhost);
+    } else if (argname == "arm_left_min") {
+      d = argv.toInt();
+      prefs.putShort("arm_left_min_deg", d);
+    } else if (argname == "arm_left_max") {
+      d = argv.toInt();
+      prefs.putShort("arm_left_max_deg", d);
+    } else if (argname == "arm_right_min") {
+      d = argv.toInt();
+      prefs.putShort("arm_right_min_deg", d);
+    } else if (argname == "arm_right_max") {
+      d = argv.toInt();
+      prefs.putShort("arm_right_max_deg", d);
+    } else if (argname == "head_pan_min") {
+      d = argv.toInt();
+      prefs.putShort("head_pan_min_deg", d);
+    } else if (argname == "head_pan_max") {
+      d = argv.toInt();
+      prefs.putShort("head_pan_max_deg", d);
+    } else if (argname == "head_tilt_min") {
+      d = argv.toInt();
+      prefs.putShort("head_tilt_min_deg", d);
+    } else if (argname == "head_tilt_max") {
+      d = argv.toInt();
+      prefs.putShort("head_tilt_max_deg", d);
     }
-    /*    if (argname == "dburl") {
-          dburl = argv;
-          prefs.putString("dburl", dburl);
-        }
-    */
-    //     else if (argname == "maxactivetime") {
-    //      max_active_time = argv.toInt();
-    //      prefs.putUInt("max_active_time", max_active_time);
-    //    }
   }
+  arms.setMinMax(prefs.getShort("arm_left_min_deg", LEFT_MIN_DEG),
+                 prefs.getShort("arm_left_max_deg", LEFT_MAX_DEG),
+                 prefs.getShort("arm_right_min_deg", RIGHT_MIN_DEG),
+                 prefs.getShort("arm_right_max_deg", RIGHT_MAX_DEG));
+  head.setMinMax(prefs.getShort("head_pan_min_deg", PAN_MIN_DEG),
+                 prefs.getShort("head_pan_max_deg", PAN_MAX_DEG),
+                 prefs.getShort("head_tilt_min_deg", TILT_MIN_DEG),
+                 prefs.getShort("head_tilt_max_deg", TILT_MAX_DEG));
   DynamicJsonBuffer jsonBuffer;
   JsonObject &json = jsonBuffer.createObject();
   json["hostname"] = myhost;
-  //  json["powerhost"] = powerhost;
-  //  json["max_active_time"] = max_active_time;
+  json["arm_left_min"] = prefs.getShort("arm_left_min_deg", LEFT_MIN_DEG);
+  json["arm_left_max"] = prefs.getShort("arm_left_max_deg", LEFT_MAX_DEG);
+  json["arm_right_min"] =
+      prefs.getShort("arm_right_min_deg", RIGHT_MIN_DEG);
+  json["arm_right_max"] =
+      prefs.getShort("arm_right_max_deg", RIGHT_MAX_DEG);
+  json["head_pan_min"] = prefs.getShort("head_pan_min_deg", PAN_MIN_DEG);
+  json["head_pan_max"] = prefs.getShort("head_pan_max_deg", PAN_MAX_DEG);
+  json["head_tilt_min"] =
+      prefs.getShort("head_tilt_min_deg", TILT_MIN_DEG);
+  json["head_tilt_max"] =
+      prefs.getShort("head_tilt_max_deg", TILT_MAX_DEG);
   json.printTo(message);
   webServer.send(200, "application/json", message);
 }

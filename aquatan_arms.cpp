@@ -3,8 +3,8 @@
 AquatanArms::AquatanArms(Servo *p, Servo *t) {
   left_servo = p;
   right_servo = t;
-  _left_center = 90 + (LEFT_MAX_DEG + LEFT_MIN_DEG) / 2;
-  _right_center = 90 + (RIGHT_MAX_DEG + RIGHT_MIN_DEG) / 2;
+  _left_center = 90 + (_left_max_deg + _left_min_deg) / 2;
+  _right_center = 90 + (_right_max_deg + _right_min_deg) / 2;
   _slowleft_moving = _slowright_moving = 0;
 }
 
@@ -26,11 +26,20 @@ void AquatanArms::begin(int16_t leftdeg, int16_t rightdeg) {
   right(rightdeg);
 }
 
+void AquatanArms::setMinMax(int16_t lmin, int16_t lmax, int16_t rmin, int16_t rmax) {
+  _left_min_deg = lmin;
+  _left_max_deg = lmax;
+  _right_min_deg = rmin;
+  _right_max_deg = rmax;
+  _left_center = 90 + (_left_max_deg + _left_min_deg) / 2;
+  _right_center = 90 + (_right_max_deg + _right_min_deg) / 2;    
+}
+
 uint8_t AquatanArms::setSlowLeft(int16_t ratio) {
   if (!_slowleft_moving) {
     _slowleft_moving = 1;
-    int16_t convdeg = map(ratio, -100, 100, LEFT_MIN_DEG, LEFT_MAX_DEG);
-    _slowleft_target_deg = constrain(convdeg, LEFT_MIN_DEG, LEFT_MAX_DEG);
+    int16_t convdeg = map(ratio, -100, 100, _left_min_deg, _left_max_deg);
+    _slowleft_target_deg = constrain(convdeg, _left_min_deg, _left_max_deg);
     return 1;
   } else {
     return 0;
@@ -65,7 +74,7 @@ void AquatanArms::left(int16_t deg) {
 int16_t AquatanArms::left() { return _left_deg; }
 
 int16_t AquatanArms::leftRatio() {
-  return map(_left_deg, LEFT_MIN_DEG, LEFT_MAX_DEG, -100, 100);
+  return map(_left_deg, _left_min_deg, _left_max_deg, -100, 100);
 }
 
 void AquatanArms::right(int16_t deg) {
@@ -79,14 +88,14 @@ void AquatanArms::right(int16_t deg) {
 int16_t AquatanArms::right() { return _right_deg; }
 
 int16_t AquatanArms::rightRatio() {
-  return map(_right_deg, RIGHT_MIN_DEG, RIGHT_MAX_DEG, -100, 100);
+  return map(_right_deg, _right_min_deg, _right_max_deg, -100, 100);
 }
 
 uint8_t AquatanArms::setSlowRight(int16_t ratio) {
   if (!_slowright_moving) {
     _slowright_moving = 1;
-    int16_t convdeg = map(ratio, -100, 100, RIGHT_MIN_DEG, RIGHT_MAX_DEG);
-    _slowright_target_deg = constrain(convdeg, RIGHT_MIN_DEG, RIGHT_MAX_DEG);
+    int16_t convdeg = map(ratio, -100, 100, _right_min_deg, _right_max_deg);
+    _slowright_target_deg = constrain(convdeg, _right_min_deg, _right_max_deg);
     return 1;
   } else {
     return 0;
@@ -115,8 +124,8 @@ uint8_t AquatanArms::slowRight() {
 uint8_t AquatanArms::setMoveLeft(int16_t ratio, uint16_t time) {
   if (!_slowleft_moving) {
     _slowleft_moving = 1;
-    int16_t convdeg = map(ratio, -100, 100, LEFT_MIN_DEG, LEFT_MAX_DEG);
-    _slowleft_target_deg = constrain(convdeg, LEFT_MIN_DEG, LEFT_MAX_DEG);
+    int16_t convdeg = map(ratio, -100, 100, _left_min_deg, _left_max_deg);
+    _slowleft_target_deg = constrain(convdeg, _left_min_deg, _left_max_deg);
     _left_interval = (time / (abs(_slowleft_target_deg - _left_deg) + 1)) + 1;
     return 1;
   } else {
@@ -149,8 +158,8 @@ uint8_t AquatanArms::updateLeft() {
 uint8_t AquatanArms::setMoveRight(int16_t ratio, uint16_t time) {
   if (!_slowright_moving) {
     _slowright_moving = 1;
-    int16_t convdeg = map(ratio, -100, 100, RIGHT_MIN_DEG, RIGHT_MAX_DEG);
-    _slowright_target_deg = constrain(convdeg, RIGHT_MIN_DEG, RIGHT_MAX_DEG);
+    int16_t convdeg = map(ratio, -100, 100, _right_min_deg, _right_max_deg);
+    _slowright_target_deg = constrain(convdeg, _right_min_deg, _right_max_deg);
     _right_interval =
         (time / (abs(_slowright_target_deg - _right_deg) + 1)) + 1;
     return 1;

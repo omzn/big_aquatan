@@ -27,6 +27,14 @@ void Camera::begin(int16_t pandeg, int16_t tiltdeg) {
   tilt(tiltdeg);
 }
 
+void Camera::setMinMax(int16_t pmin, int16_t pmax, int16_t tmin, int16_t tmax) {
+  _pan_min_deg = pmin;
+  _pan_max_deg = pmax;
+  _tilt_min_deg = tmin;
+  _tilt_max_deg = tmax;
+  _pan_center = 90 + (_pan_max_deg + _pan_min_deg) / 2;
+  _tilt_center = 90 + (_tilt_max_deg + _tilt_min_deg) / 2;    
+}
 
 uint8_t Camera::setSlowPan(int16_t ratio) {
   if (!_slowpan_moving) {

@@ -8,3 +8,7 @@ void handleStatus();
 void handleRawStatus();
 void handleEye();
 void handleArm();
+void handleBanzai();
+
+void handleGesture();
+

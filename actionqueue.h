@@ -16,28 +16,36 @@ enum {
   ACT_ARMS,
   ACT_ARM_LEFT,
   ACT_ARM_RIGHT,
-  ACT_CHEEK
+  ACT_CHEEK,
+  ACT_WAIT
 };
 
 typedef struct node {
   uint8_t type;
-  int eyes_shape, eyes_mode;
+  int eyes_leftshape, eyes_rightshape, eyes_mode;
   int arm_left, arm_right, arm_time;
   int head_pan, head_tilt;
+  LED_mode_t cheek_mode;
+  RgbColor cheek_color;
+  int wait;
 } Node;
 
 class actionQueue {
 public:
-  actionQueue(AquatanEyes *e, AquatanArms *a, Camera *h, NeoPixels *c); //, Charger *c);
-  void queueEyes(int shape, int m);
+  actionQueue(AquatanEyes *e, AquatanArms *a, Camera *h,
+              NeoPixels *c); //, Charger *c);
+  void queueEyes(int l_shape, int r_shape, int m);
   void queueArms(int left, int right, int time);
   void queueArmLeft(int left, int time);
   void queueArmRight(int right, int time);
   void queueHead(int pan, int tilt);
   void queueHeadPan(int pan);
   void queueHeadTilt(int tilt);
+  void queueCheek(LED_mode_t m, RgbColor color);
+  void queueWait(int w);
   uint8_t dequeue();
   void clear();
+  uint8_t isEmpty();
 
 protected:
   Node _queue[MAX_QUEUE_SIZE];

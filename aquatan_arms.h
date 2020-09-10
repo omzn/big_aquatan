@@ -40,10 +40,15 @@ class AquatanArms {
         uint8_t updateRight();
         uint8_t isMovingLeft();
         uint8_t isMovingRight();
-        
+
+        void setMinMax(int16_t,int16_t,int16_t,int16_t);
+
     private:
         Servo *left_servo, *right_servo;
         int16_t _left_center, _right_center;
+        int16_t _left_max_deg = LEFT_MAX_DEG, _right_max_deg = RIGHT_MAX_DEG;
+        int16_t _left_min_deg = LEFT_MIN_DEG, _right_min_deg = RIGHT_MIN_DEG;
+        
         int16_t _left_deg, _right_deg;
         int16_t _slowleft_target_deg, _slowright_target_deg;
         uint8_t _slowleft_moving, _slowright_moving;
