@@ -16,7 +16,7 @@
 
 enum {EYE_IDLE = 0, EYE_BLINK, EYE_MOVE, EYE_WINK, EYE_SLEEP, EYE_LAST};
 enum {BLINK_NONE = 0, BLINK_CLOSE, BLINK_OPEN};
-enum {SHAPE_NORMAL = 0, SHAPE_ZITO, SHAPE_LT, SHAPE_GT, SHAPE_HORI, SHAPE_LAST};
+enum {SHAPE_NORMAL = 0, SHAPE_ZITO, SHAPE_LT, SHAPE_GT, SHAPE_GURUGURU, SHAPE_HORI, SHAPE_LAST};
 
 class AquatanEye {
 private:
@@ -70,7 +70,7 @@ public:
   void move();
   void blink();
   void setMoveTarget(int,int);
-  void randomBlinking();
+  void randomBlinking(int move);
 };
 
 #endif

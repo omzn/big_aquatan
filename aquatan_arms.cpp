@@ -12,7 +12,7 @@ void AquatanArms::begin() {
   left_servo->setPeriodHertz(50);  // Standard 50hz servo
   right_servo->setPeriodHertz(50); // Standard 50hz servo
   left_servo->attach(PIN_SERVO2);
-  right_servo->attach(PIN_SERVO4);
+  right_servo->attach(PIN_SERVO3);
   left(0);
   right(0);
 }
@@ -21,7 +21,7 @@ void AquatanArms::begin(int16_t leftdeg, int16_t rightdeg) {
   left_servo->setPeriodHertz(50);  // Standard 50hz servo
   right_servo->setPeriodHertz(50); // Standard 50hz servo
   left_servo->attach(PIN_SERVO2);
-  right_servo->attach(PIN_SERVO4);
+  right_servo->attach(PIN_SERVO3);
   left(leftdeg);
   right(rightdeg);
 }
@@ -161,7 +161,7 @@ uint8_t AquatanArms::setMoveRight(int16_t ratio, uint16_t time) {
     int16_t convdeg = map(ratio, -100, 100, _right_min_deg, _right_max_deg);
     _slowright_target_deg = constrain(convdeg, _right_min_deg, _right_max_deg);
     _right_interval =
-        (time / (abs(_slowright_target_deg - _right_deg) + 1)) + 1;
+        (time / (abs(_slowright_target_deg) + 1)) + 1;
     return 1;
   } else {
     return 0;

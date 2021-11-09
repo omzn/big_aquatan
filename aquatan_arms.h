@@ -4,19 +4,17 @@
 #include "Arduino.h"
 #include <ESP32Servo.h>
 
-#define PIN_SERVO1      (18)
-#define PIN_SERVO2      (19)
-#define PIN_SERVO3      (23)
-#define PIN_SERVO4      (26)
+#define PIN_SERVO2      (26)
+#define PIN_SERVO3      (19)
 
 #define LEFT_DIRECTION  (-1)
 #define RIGHT_DIRECTION  (1)
 
-#define LEFT_MAX_DEG  (30)
-#define LEFT_MIN_DEG  (-30)
+#define LEFT_MAX_DEG  (80)
+#define LEFT_MIN_DEG  (-80)
 
-#define RIGHT_MAX_DEG  (30)
-#define RIGHT_MIN_DEG  (-30)
+#define RIGHT_MAX_DEG  (80)
+#define RIGHT_MIN_DEG  (-80)
 
 class AquatanArms {
     public:

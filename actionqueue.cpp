@@ -1,6 +1,6 @@
 #include "actionqueue.h"
 
-actionQueue::actionQueue(AquatanEyes *e, AquatanArms *a, Camera *h, NeoPixels *c) {
+actionQueue::actionQueue(AquatanEyes *e, AquatanArms *a, AquatanHead *h, NeoPixels *c) {
   _eyes = e;
   _arms = a;
   _head = h;
@@ -37,18 +37,6 @@ void actionQueue::queueArmRight(int right, int time) {
   _queue[qlast].arm_time = time;
 }
 
-void actionQueue::queueHead(int pan, int tilt) {
-  qlast = (qlast + 1) % MAX_QUEUE_SIZE;
-  _queue[qlast].type = ACT_HEAD;
-  _queue[qlast].head_pan = pan;
-  _queue[qlast].head_tilt = tilt;
-}
-
-void actionQueue::queueHeadPan(int pan) {
-  qlast = (qlast + 1) % MAX_QUEUE_SIZE;
-  _queue[qlast].type = ACT_HEAD_PAN;
-  _queue[qlast].head_pan = pan;
-}
 void actionQueue::queueHeadTilt(int tilt) {
   qlast = (qlast + 1) % MAX_QUEUE_SIZE;
   _queue[qlast].type = ACT_HEAD_TILT;
@@ -78,7 +66,7 @@ uint8_t actionQueue::dequeue() {
   if (qtop == qlast) {
     return 0;
   }
-  if (_arms->isMovingLeft() || _arms->isMovingRight() || _head->isMovingPan() ||
+  if (_arms->isMovingLeft() || _arms->isMovingRight() || 
       _head->isMovingTilt()) {
     return 0;
   }
@@ -105,13 +93,6 @@ uint8_t actionQueue::dequeue() {
     break;
   case ACT_ARM_RIGHT:
     _arms->setMoveRight(_queue[qtop].arm_right, _queue[qtop].arm_time);
-    break;
-  case ACT_HEAD:
-    _head->setMovePan(_queue[qtop].head_pan);
-    _head->setMoveTilt(_queue[qtop].head_tilt);
-    break;
-  case ACT_HEAD_PAN:
-    _head->setMovePan(_queue[qtop].head_pan);
     break;
   case ACT_HEAD_TILT:
     _head->setMoveTilt(_queue[qtop].head_tilt);
