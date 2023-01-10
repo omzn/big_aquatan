@@ -70,7 +70,7 @@ NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod> leds(NEOPIXEL_LED_NUM,
                                                   PIN_NEOPIXEL);
 NeoPixels cheek(&leds);
 
-actionQueue actions(&eyes, &arms, &head, &cheek);
+//actionQueue actions(&eyes, &arms, &head, &cheek);
 
 // WebServer webServer(80);
 // NTP ntp("ntp.nict.jp");
@@ -139,7 +139,7 @@ int getSoundLevel() {
 void setup() {
   // WiFiManager wifiManager;
 
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial2.begin(115200, SERIAL_8N1, PIN_SERIAL2_RX, PIN_SERIAL2_TX);
   // rtc.begin(DateTime(2019, 12, 15, 15, 45, 0));
   prefs.begin("aquatan", false);
@@ -154,15 +154,9 @@ void setup() {
   cheek.addPixel(1);
   cheek.mode(LED_OFF);
   cheek.update();
-  cheek.color(operation_mode == OPERATION_MANUAL
-                  ? LEDCOLOR_RED
-                  : (operation_mode != OPERATION_SLEEP ? LEDCOLOR_MAGENTA
-                                                       : LEDCOLOR_CYAN));
-  cheek.period(operation_mode == OPERATION_SLEEP ? 10 : 3);
-  cheek.mode(LED_FADE);
 
-  head.begin(0);
   head.setMinMax(TILT_MIN_DEG, TILT_MAX_DEG);
+  head.begin(0);
   arms.begin(0, 0);
   // arms.setMinMax(prefs.getShort("arm_left_min_deg", LEFT_MIN_DEG),
   //                prefs.getShort("arm_left_max_deg", LEFT_MAX_DEG),
@@ -176,11 +170,15 @@ void setup() {
   cheek.color(LEDCOLOR_BLUE);
   cheek.mode(LED_FADE);
   cheek.period(2);
+
   eyes.shape(SHAPE_NORMAL);
   eyes.mode(EYE_IDLE);
-  actions.queueHeadTilt(0);
-  actions.queueArmLeft(50, 50);
-  actions.queueArmRight(50, 50);
+  arms.leftRatio(50);
+  arms.rightRatio(50);
+  head.tiltRatio(0);
+//  actions.queueHeadTilt(0);
+//  actions.queueArmLeft(50, 50);
+//  actions.queueArmRight(50, 50);
   move_timer = millis();
   operation_timer = millis();
 }
@@ -190,10 +188,12 @@ void loop() {
 
   if (Serial2.available()) {
     op = Serial2.read();
-    Serial.println(op);
+//    Serial.println(op);
     if (op) {
-      if (millis() - operation_timer > 200) {
+      if (millis() - operation_timer > 250) {
+        operation_timer = millis();
         if (op == 'f' && operation_mode != OPERATION_FORWARD) {  // run forward
+          Serial.println(op);
           operation_mode = OPERATION_FORWARD;
           cheek.color(LEDCOLOR_YELLOW);
           cheek.mode(LED_FADE);
@@ -201,12 +201,12 @@ void loop() {
           eyes.shape(SHAPE_GT, SHAPE_LT);
           eyes.mode(EYE_MOVE);
           eyes.setMoveTarget(0, 0);
-          actions.queueHeadTilt(0);
-          actions.queueArmLeft(run_left, 50);
-          actions.queueArmRight(run_right, 50);
-
+          arms.leftRatio(run_left);
+          arms.rightRatio(run_right);
+          head.tiltRatio(0);
         } else if (op == 'b' &&
                    operation_mode != OPERATION_BACKWARD) {  // run backword
+          Serial.println(op);
           operation_mode = OPERATION_BACKWARD;
           cheek.color(LEDCOLOR_RED);
           cheek.mode(LED_FADE);
@@ -214,11 +214,11 @@ void loop() {
           eyes.shape(SHAPE_ZITO);
           eyes.mode(EYE_MOVE);
           eyes.setMoveTarget(-1, 0);
-          actions.queueHeadTilt(-100);
-          actions.queueArmLeft(-100, 50);
-          actions.queueArmRight(-100, 50);
-
+          arms.leftRatio(-100);
+          arms.rightRatio(-100);
+          head.tiltRatio(-100);
         } else if (op == 'l' && operation_mode != OPERATION_LEFT) {  // run left
+          Serial.println(op);
           operation_mode = OPERATION_LEFT;
           cheek.color(LEDCOLOR_GREEN);
           cheek.mode(LED_FADE);
@@ -226,12 +226,12 @@ void loop() {
           eyes.shape(SHAPE_ZITO);
           eyes.mode(EYE_MOVE);
           eyes.setMoveTarget(0, -1);
-          actions.queueHeadTilt(0);
-          actions.queueArmLeft(100, 50);
-          actions.queueArmRight(0, 50);
-
+          arms.leftRatio(100);
+          arms.rightRatio(0);
+          head.tiltRatio(0);
         } else if (op == 'r' &&
                    operation_mode != OPERATION_RIGHT) {  // run right
+          Serial.println(op);
           operation_mode = OPERATION_RIGHT;
           cheek.color(LEDCOLOR_GREEN);
           cheek.mode(LED_FADE);
@@ -239,64 +239,65 @@ void loop() {
           eyes.shape(SHAPE_ZITO);
           eyes.mode(EYE_MOVE);
           eyes.setMoveTarget(0, 1);
-          actions.queueHeadTilt(0);
-          actions.queueArmLeft(0, 50);
-          actions.queueArmRight(100, 50);
-
+          arms.leftRatio(0);
+          arms.rightRatio(100);
+          head.tiltRatio(0);
         } else if (op == 's' && operation_mode != OPERATION_SPIN) {  // spin
+          Serial.println(op);
           operation_mode = OPERATION_SPIN;
           cheek.color(LEDCOLOR_MAGENTA);
           cheek.mode(LED_FADE);
           cheek.period(1);
           eyes.shape(SHAPE_GURUGURU);
           eyes.mode(EYE_MOVE);
-          eyes.setMoveTarget(0, 0);
-          actions.queueHeadTilt(100);
-          actions.queueArmLeft(100, 50);
-          actions.queueArmRight(100, 50);
-
+          eyes.setMoveTarget(-1, 0);
+          arms.leftRatio(100);
+          arms.rightRatio(100);
+          head.tiltRatio(100);
         } else if (op == 'm' && operation_mode != OPERATION_MANUAL) {  // manual
+          Serial.println(op);
           operation_mode = OPERATION_MANUAL;
           cheek.color(LEDCOLOR_BLUE);
           cheek.mode(LED_FADE);
           cheek.period(2);
           eyes.shape(SHAPE_NORMAL);
           eyes.mode(EYE_IDLE);
-          actions.queueHeadTilt(0);
-          actions.queueArmLeft(50, 50);
-          actions.queueArmRight(50, 50);
+          arms.leftRatio(50);
+          arms.rightRatio(50);
+          head.setSlowTilt(0);
           move_timer = millis();
         } else if (op == '0' && operation_mode == OPERATION_MANUAL) {  // manual
-          tilt.write(67);
-
+          tilt.write(90-23);
         } else if (op == '1' && operation_mode == OPERATION_MANUAL) {  // manual
-          tilt.write(65);
-
+          tilt.write(90-25);
         } else if (op == '2' && operation_mode == OPERATION_MANUAL) {  // manual
-          tilt.write(60);
-
+          tilt.write(90-27);
         } else if (op == '3' && operation_mode == OPERATION_MANUAL) {  // manual
-          tilt.write(57);
-
+          tilt.write(90-29);
         } else if (op == '4' && operation_mode == OPERATION_MANUAL) {  // manual
-          tilt.write(55);
-
+          tilt.write(90-31);
         } else if (op == '5' && operation_mode == OPERATION_MANUAL) {  // manual
-          tilt.write(52);
-
+          tilt.write(90-33);
+        } else if (op == '6' && operation_mode == OPERATION_MANUAL) {  // manual
+          tilt.write(90-35);
+        } else if (op == '7' && operation_mode == OPERATION_MANUAL) {  // manual
+          tilt.write(90-37);
+        } else if (op == '8' && operation_mode == OPERATION_MANUAL) {  // manual
+          tilt.write(90-39);
         } else if (operation_mode == OPERATION_SLEEP) {
           operation_mode = OPERATION_MANUAL;
           cheek.color(LEDCOLOR_BLUE);
           cheek.mode(LED_FADE);
           cheek.period(2);
           eyes.shape(SHAPE_NORMAL);
+          eyes.setMoveTarget(0, 0);
           eyes.mode(EYE_IDLE);
-          actions.queueHeadTilt(0);
-          actions.queueArmLeft(50, 50);
-          actions.queueArmRight(50, 50);
+          arms.leftRatio(50);
+          arms.rightRatio(50);
+          head.setSlowTilt(0);
+          move_timer = millis();
         }
       }
-      operation_timer = millis();
     }
   }
 
@@ -312,9 +313,12 @@ void loop() {
       cheek.period(2);
       eyes.shape(SHAPE_NORMAL);
       eyes.mode(EYE_IDLE);
-      actions.queueHeadTilt(0);
-      actions.queueArmLeft(50, 50);
-      actions.queueArmRight(50, 50);
+      arms.leftRatio(50);
+      arms.rightRatio(50);
+      head.setSlowTilt(0);
+//      actions.queueHeadTilt(0);
+//      actions.queueArmLeft(50, 50);
+//      actions.queueArmRight(50, 50);
     }
   } 
 
@@ -325,15 +329,24 @@ void loop() {
       cheek.color(LEDCOLOR_CYAN);
       cheek.mode(LED_FADE);
       cheek.period(10);
+      eyes.setMoveTarget(0, 0);
       eyes.shape(SHAPE_HORI);
       eyes.mode(EYE_SLEEP);
-      actions.queueHeadTilt(-80);
-      actions.queueArmLeft(-50, 50);
-      actions.queueArmRight(-50, 50);
+      arms.leftRatio(-50);
+      arms.rightRatio(-50);
+      head.setSlowTilt(-100);
+//      actions.queueHeadTilt(-80);
+//      actions.queueArmLeft(-50, 50);
+//      actions.queueArmRight(-50, 50);
     } else {
       if (millis() - move_timer > 1000) {
-        if (random(100) < 10) {
-          actions.queueHeadTilt(random(130) - 50);
+        if (random(100) < 20) {
+//          actions.queueHeadTilt(random(130) - 50);
+          int ratio = 100 - random(200);
+//          head.tiltRatio(ratio);
+          head.setSlowTilt(ratio);
+//          Serial.println(ratio);
+//          Serial.println(head.tiltRatio());
         }
         move_timer = millis();
       }
@@ -344,19 +357,19 @@ void loop() {
   eyes.blink();
   eyes.move();
 
-  actions.dequeue();
+  //actions.dequeue();
 
   cheek.update();
   if (head.updateTilt()) {
-    //  Serial.println(tilt.read());
-    // prefs.putShort("tilt_deg", head.tilt());
+    Serial.println(tilt.read());
   }
-  if (arms.updateLeft()) {
+/*
+//  if (arms.updateLeft()) {
     // prefs.putShort("arm_left_deg", arms.left());
-    if (operation_mode == OPERATION_FORWARD ||
-        operation_mode == OPERATION_RIGHT) {
-      run_left = -run_left;
-      actions.queueArmLeft(run_left, 50);
+//    if (operation_mode == OPERATION_FORWARD ||
+//        operation_mode == OPERATION_RIGHT) {
+//      run_left = -run_left;
+//      actions.queueArmLeft(run_left, 50);
     }
   }
   if (arms.updateRight()) {
@@ -367,7 +380,7 @@ void loop() {
       actions.queueArmRight(run_right, 50);
     }
   }
-
+*/
   delay(1);
 }
 

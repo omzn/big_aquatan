@@ -16,8 +16,8 @@
 //#define PAN_MAX_DEG  ( 12)
 //#define PAN_MIN_DEG  (-12)
 
-#define TILT_MAX_DEG  (-23)
-#define TILT_MIN_DEG  (-38)
+#define TILT_MAX_DEG  (90-23)
+#define TILT_MIN_DEG  (90-38)
 
 class AquatanHead {
     public:
@@ -30,6 +30,7 @@ class AquatanHead {
  //       uint8_t setSlowPan(int16_t);
  //       uint8_t slowPan();
         void tilt(int16_t);
+        void tiltRatio(int16_t);
         int16_t tilt();
         int16_t tiltRatio();
         uint8_t setSlowTilt(int16_t);

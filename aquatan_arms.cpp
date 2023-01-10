@@ -64,11 +64,12 @@ uint8_t AquatanArms::slowLeft() {
 }
 
 void AquatanArms::left(int16_t deg) {
-  deg = constrain(deg, -90, 90);
-  _left_deg = deg;
-  //  left_servo->attach(PIN_SERVO2);
+  _left_deg = constrain(deg, -90, 90);
   left_servo->write(_left_center + (_left_deg * LEFT_DIRECTION));
-  //  left_servo->detach();
+}
+
+void AquatanArms::leftRatio(int16_t ratio) {
+  left(map(ratio, -100, 100, _left_min_deg, _left_max_deg));
 }
 
 int16_t AquatanArms::left() { return _left_deg; }
@@ -78,11 +79,12 @@ int16_t AquatanArms::leftRatio() {
 }
 
 void AquatanArms::right(int16_t deg) {
-  deg = constrain(deg, -90, 90);
-  _right_deg = deg;
-  //  right_servo->attach(PIN_SERVO4);
+  _right_deg = constrain(deg, -90, 90);
   right_servo->write(_right_center + (_right_deg * RIGHT_DIRECTION));
-  //  right_servo->detach();
+}
+
+void AquatanArms::rightRatio(int16_t ratio) {
+  right(map(ratio, -100, 100, _right_min_deg, _right_max_deg));
 }
 
 int16_t AquatanArms::right() { return _right_deg; }

@@ -22,11 +22,13 @@ class AquatanArms {
         void begin();
         void begin(int16_t, int16_t);
         void left(int16_t);
+        void leftRatio(int16_t);
         int16_t left();
         int16_t leftRatio();
         uint8_t setSlowLeft(int16_t);
         uint8_t slowLeft();
         void right(int16_t);
+        void rightRatio(int16_t);
         int16_t right();
         int16_t rightRatio();
         uint8_t setSlowRight(int16_t);
